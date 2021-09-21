@@ -1,8 +1,10 @@
 import numpy as np
 import xarray as xr
+import pandas as pd
 
 CH_CENTER = [46.818, 8.228]
 CH_BOUNDING_BOX = [45.66, 47.87, 5.84, 10.98]
+G = 9.80665
 
 # Data extraction functions for ERA5
 
@@ -116,3 +118,110 @@ def get_data_mean_over_CH_box(ds, level=0):
     level -- the desired vertical level
     """
     return get_data_mean_over_box(ds, [CH_BOUNDING_BOX[0], CH_BOUNDING_BOX[1]], [CH_BOUNDING_BOX[2], CH_BOUNDING_BOX[3]], level)
+
+
+def precip_exceedance(precip, qt=0.95):
+    """Create exceedances of precipitation
+
+    Arguments:
+    precip -- the precipitation dataframe
+    qt -- the desired quantile
+    """
+    precip_qt = precip.copy()
+
+    for key, ts in precip.iteritems():
+        if key in ['date', 'year', 'month', 'day']:
+            continue
+        precip_qt[key] = ts > ts.quantile(qt)
+
+    return precip_qt
+
+
+def get_precipitation_data(path, start, end):
+    """Read the precipitation time series and select data for the given period
+
+    Arguments:
+    path -- path to the csv file
+    start -- start of the period to extract
+    end -- end of the period to extract
+    """
+    precip = pd.read_csv(path)
+
+    df_time = pd.to_datetime({
+        'year': precip.year,
+        'month': precip.month,
+        'day': precip.day})
+    precip.insert(0, "date", df_time, True)
+
+    precip = precip[(precip.date >= start) & (precip.date <= end)]
+
+    return precip
+
+
+def convert_units(df):
+    """Convert each column to the corresponding units"""
+    for key, ts in df.iteritems():
+        if key in ['T2MMEAN', 'T2M']:
+            df[key] = ts - 273.15
+        if key in ['Z1000', 'Z850', 'Z700', 'Z500', 'Z300']:
+            df[key] = ts/G
+        if key in ['MSL']:
+            df[key] = ts/100
+
+    return df
+
+
+def remove_duplicate_date_column(df):
+    """Remove duplicate date column in dataframes"""
+    names = df.columns.values.tolist()
+
+    if names.count('date') > 1:
+        dates = df.date
+        dates = dates.iloc[:, -1:]
+        df = df.drop('date', axis=1)
+        df = pd.concat([dates, df], axis=1)
+
+    return df
+
+
+def concat_dataframes(dfs):
+    """Concatenate dataframes provided as a list"""
+    length = len(dfs[0])
+    start_date = dfs[0].date.iloc[0]
+    end_date = dfs[0].date.iloc[-1]
+
+    # Check consistency between dataframes
+    for df in dfs:
+        if len(df) != length:
+            raise Exception(
+                'Dataframes to concatenate do not have the same length ({} vs {})'.format(len(df), length))
+        if dfs[0].date.iloc[0] != start_date:
+            raise Exception(
+                'Dataframes to concatenate do not have the same starting date')
+        if dfs[0].date.iloc[-1] != end_date:
+            raise Exception(
+                'Dataframes to concatenate do not have the same ending date')
+
+    dfs_concat = pd.concat(dfs, axis=1)
+    dfs_concat = remove_duplicate_date_column(dfs_concat)
+
+    return dfs_concat
+
+
+def read_csv_files(csv_files, start, end):
+    """"Read CSV files according to the pattern csv_files
+        Select the time period """
+    dataframes = []  # a list to hold all the individual pandas DataFrames
+    start_date = pd.to_datetime(start).date()
+    end_date = pd.to_datetime(end).date()
+
+    for csv_file in csv_files:
+        df = pd.read_csv(csv_file, parse_dates=['date'])
+        df['date'] = df['date'].dt.date
+        df = df[(df.date >= start_date) & (df.date <= end_date)]
+        df = convert_units(df)
+        dataframes.append(df)
+
+    all_dfs = concat_dataframes(dataframes)
+
+    return all_dfs
