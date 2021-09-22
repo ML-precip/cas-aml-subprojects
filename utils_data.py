@@ -31,22 +31,26 @@ def get_era5_data(files, start, end):
     return ds
 
 
-def extract_nearest_point_data(ds, lat, lon):
+def extract_nearest_point_data(ds, lat, lon, level=0):
     """Return the time series data for the nearest grid point.
 
     Arguments:
         ds -- the dataset (xarray Dataset) to extract the data from
         lat -- the latitude coordinate of the point of interest
         lon -- the longitude coordinate of the point of interest
+        level -- the desired vertical level
 
     Example:
     z = xr.open_mfdataset(DATADIR + '/ERA5/geopotential/*.nc', combine='by_coords')
     a = extract_nearest_point_data(z, CH_CENTER[0], CH_CENTER[1])
     """
+    if 'level' in ds.dims:
+        return ds.sel({'lat': lat, 'lon': lon, 'level': level}, method="nearest")
+        
     return ds.sel({'lat': lat, 'lon': lon}, method="nearest")
 
 
-def extract_points_around(ds, lat, lon, step_lat, step_lon, nb_lat, nb_lon):
+def extract_points_around(ds, lat, lon, step_lat, step_lon, nb_lat, nb_lon, levels=0):
     """Return the time series data for a grid point mesh around the provided coordinates.
 
     Arguments:
@@ -57,25 +61,39 @@ def extract_points_around(ds, lat, lon, step_lat, step_lon, nb_lat, nb_lon):
     step_lon -- the step in longitude of the mesh
     nb_lat -- the total number of grid points to extract for the latitude axis (the mesh will be centered)
     nb_lon -- the total number of grid points to extract for the longitude axis (the mesh will be centered)
+    levels -- the desired vertical level(s)
 
     Example:
     z = xr.open_mfdataset(DATADIR + '/ERA5/geopotential/*.nc', combine='by_coords')
     a = extract_points_around(z, CH_CENTER[0], CH_CENTER[1], step_lat=1, step_lon=1, nb_lat=3, nb_lon=3)
     """
     lats = np.arange(lat - step_lat * (nb_lat - 1) / 2,
-                     lat + step_lat * nb_lat / 2, step_lat)
+                lat + step_lat * nb_lat / 2, step_lat)
     lons = np.arange(lon - step_lon * (nb_lon - 1) / 2,
-                     lon + step_lon * nb_lon / 2, step_lon)
-    xx, yy = np.meshgrid(lats, lons)
-    xx = xx.flatten()
-    yy = yy.flatten()
-    xys = np.column_stack((xx, yy))
+                    lon + step_lon * nb_lon / 2, step_lon)
 
-    data = []
-    for xy in xys:
-        data.append(extract_nearest_point_data(ds, xy[0], xy[1]))
+    if 'level' in ds.dims:
+        data = ds.sel({'lat': lats, 'lon': lons, 'level': levels}, method='nearest')
+        stacked = data.stack(z=('lat', 'lon', 'level'))
+    else:
+        data = ds.sel({'lat': lats, 'lon': lons}, method='nearest')
+        stacked = data.stack(z=('lat', 'lon'))
 
-    return data
+    return stacked
+
+
+def extract_points_around_CH(ds, step_lat, step_lon, nb_lat, nb_lon, levels=0):
+    """Return the time series data for a grid point mesh around Switzerland.
+
+    Arguments:
+    ds -- the dataset (xarray Dataset) to extract the data from
+    step_lat -- the step in latitude of the mesh
+    step_lon -- the step in longitude of the mesh
+    nb_lat -- the total number of grid points to extract for the latitude axis (the mesh will be centered)
+    nb_lon -- the total number of grid points to extract for the longitude axis (the mesh will be centered)
+    levels -- the desired vertical level(s)
+    """
+    return extract_points_around(ds, CH_CENTER[0], CH_CENTER[1], step_lat=step_lat, step_lon=step_lon, nb_lat=nb_lat, nb_lon=nb_lon, levels=levels)
 
 
 def get_data_mean_over_box(ds, lats, lons, level=0):
@@ -187,23 +205,29 @@ def remove_duplicate_date_column(df):
 def concat_dataframes(dfs):
     """Concatenate dataframes provided as a list"""
     length = len(dfs[0])
-    start_date = dfs[0].date.iloc[0]
-    end_date = dfs[0].date.iloc[-1]
+    start_date = None
+    end_date = None
 
     # Check consistency between dataframes
     for df in dfs:
         if len(df) != length:
             raise Exception(
                 'Dataframes to concatenate do not have the same length ({} vs {})'.format(len(df), length))
-        if dfs[0].date.iloc[0] != start_date:
-            raise Exception(
-                'Dataframes to concatenate do not have the same starting date')
-        if dfs[0].date.iloc[-1] != end_date:
-            raise Exception(
-                'Dataframes to concatenate do not have the same ending date')
+        if 'date' in df.dims:
+            if start_date == None:
+                start_date = df.date.iloc[0]
+                end_date = df.date.iloc[-1]
+            if df.date.iloc[0] != start_date:
+                raise Exception(
+                    'Dataframes to concatenate do not have the same starting date')
+            if df.date.iloc[-1] != end_date:
+                raise Exception(
+                    'Dataframes to concatenate do not have the same ending date')
 
     dfs_concat = pd.concat(dfs, axis=1)
-    dfs_concat = remove_duplicate_date_column(dfs_concat)
+    
+    if 'date' in dfs_concat.dims:
+        dfs_concat = remove_duplicate_date_column(dfs_concat)
 
     return dfs_concat
 
