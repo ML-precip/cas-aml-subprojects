@@ -37,7 +37,7 @@ def prepareData(dd):
 
     df_prepared = full_pipeline.fit_transform(dd)
     
-    return(df_prepared)
+    return(full_pipeline)
 
 
 
