@@ -2,6 +2,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
 
 def split_data(df, yy_train, yy_test, attributes, ylabel):
     """"Split the data into train and test
@@ -23,20 +24,29 @@ def split_data(df, yy_train, yy_test, attributes, ylabel):
     return(train_dataset, train_labels, test_dataset, test_labels, train_dates, test_dates)
 
 
-def prepareData(dd):
+def prepareData(dd, cat_var):
+    """Prepare the data in the right format for the model"""
     
     num_attribs = list(dd)
     num_pipeline = Pipeline([
-        ('imputer', SimpleImputer(strategy="median")),
-        ('std_scaler', StandardScaler()),
+            ('imputer', SimpleImputer(strategy="median")),
+            ('std_scaler', StandardScaler()),
     ])
 
-    full_pipeline = ColumnTransformer([
+    if (cat_var!=None):
+        num_attribs.remove(cat_var)
+        cat_attribs = [cat_var]
+        full_pipeline = ColumnTransformer([
         ("num", num_pipeline, num_attribs),
-    ])
+        ("cat", OneHotEncoder(), cat_attribs),
+        ])
+    else:
+        full_pipeline = ColumnTransformer([
+            ("num", num_pipeline, num_attribs),
+        ])
 
     df_prepared = full_pipeline.fit_transform(dd)
-    
+
     return(full_pipeline)
 
 
