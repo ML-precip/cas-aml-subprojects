@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 import pandas as pd
+from datetime import date
 
 CH_CENTER = [46.818, 8.228]
 CH_BOUNDING_BOX = [45.66, 47.87, 5.84, 10.98]
@@ -205,28 +206,33 @@ def remove_duplicate_date_column(df):
 def concat_dataframes(dfs):
     """Concatenate dataframes provided as a list"""
     length = len(dfs[0])
-    start_date = None
-    end_date = None
+    start_date_ref = None
+    end_date_ref = None
 
     # Check consistency between dataframes
     for df in dfs:
         if len(df) != length:
             raise Exception(
                 'Dataframes to concatenate do not have the same length ({} vs {})'.format(len(df), length))
-        if 'date' in df.dims:
-            if start_date == None:
-                start_date = df.date.iloc[0]
-                end_date = df.date.iloc[-1]
-            if df.date.iloc[0] != start_date:
+        if 'date' in df.columns:
+            start_date = df.date.iloc[0]
+            end_date = df.date.iloc[-1]
+            if type(start_date) is pd.Timestamp:
+                start_date = start_date.date()
+                end_date = end_date.date()
+            if start_date_ref == None:
+                start_date_ref = start_date
+                end_date_ref = end_date
+            if start_date != start_date_ref:
                 raise Exception(
                     'Dataframes to concatenate do not have the same starting date')
-            if df.date.iloc[-1] != end_date:
+            if end_date != end_date_ref:
                 raise Exception(
                     'Dataframes to concatenate do not have the same ending date')
 
     dfs_concat = pd.concat(dfs, axis=1)
     
-    if 'date' in dfs_concat.dims:
+    if 'date' in dfs_concat.columns:
         dfs_concat = remove_duplicate_date_column(dfs_concat)
 
     return dfs_concat
@@ -236,8 +242,8 @@ def read_csv_files(csv_files, start, end):
     """"Read CSV files according to the pattern csv_files
         Select the time period """
     dataframes = []  # a list to hold all the individual pandas DataFrames
-    start_date = pd.to_datetime(start).date()
-    end_date = pd.to_datetime(end).date()
+    start_date = date.fromisoformat(start)
+    end_date = date.fromisoformat(end)
 
     for csv_file in csv_files:
         df = pd.read_csv(csv_file, parse_dates=['date'])
