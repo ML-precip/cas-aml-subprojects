@@ -29,6 +29,9 @@ def get_era5_data(files, start, end):
         time=slice(start, end)
     )
 
+    if 'time_bnds' in ds.variables:
+        ds = ds.drop('time_bnds')
+    
     return ds
 
 
@@ -75,12 +78,10 @@ def extract_points_around(ds, lat, lon, step_lat, step_lon, nb_lat, nb_lon, leve
 
     if 'level' in ds.dims:
         data = ds.sel({'lat': lats, 'lon': lons, 'level': levels}, method='nearest')
-        stacked = data.stack(z=('lat', 'lon', 'level'))
     else:
         data = ds.sel({'lat': lats, 'lon': lons}, method='nearest')
-        stacked = data.stack(z=('lat', 'lon'))
 
-    return stacked
+    return data
 
 
 def extract_points_around_CH(ds, step_lat, step_lon, nb_lat, nb_lon, levels=0):
