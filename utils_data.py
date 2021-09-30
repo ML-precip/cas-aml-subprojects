@@ -31,7 +31,7 @@ def get_era5_data(files, start, end):
 
     if 'time_bnds' in ds.variables:
         ds = ds.drop('time_bnds')
-    
+
     return ds
 
 
@@ -50,7 +50,7 @@ def extract_nearest_point_data(ds, lat, lon, level=0):
     """
     if 'level' in ds.dims:
         return ds.sel({'lat': lat, 'lon': lon, 'level': level}, method="nearest")
-        
+
     return ds.sel({'lat': lat, 'lon': lon}, method="nearest")
 
 
@@ -72,12 +72,13 @@ def extract_points_around(ds, lat, lon, step_lat, step_lon, nb_lat, nb_lon, leve
     a = extract_points_around(z, CH_CENTER[0], CH_CENTER[1], step_lat=1, step_lon=1, nb_lat=3, nb_lon=3)
     """
     lats = np.arange(lat - step_lat * (nb_lat - 1) / 2,
-                lat + step_lat * nb_lat / 2, step_lat)
+                     lat + step_lat * nb_lat / 2, step_lat)
     lons = np.arange(lon - step_lon * (nb_lon - 1) / 2,
-                    lon + step_lon * nb_lon / 2, step_lon)
+                     lon + step_lon * nb_lon / 2, step_lon)
 
     if 'level' in ds.dims:
-        data = ds.sel({'lat': lats, 'lon': lons, 'level': levels}, method='nearest')
+        data = ds.sel({'lat': lats, 'lon': lons,
+                      'level': levels}, method='nearest')
     else:
         data = ds.sel({'lat': lats, 'lon': lons}, method='nearest')
 
@@ -95,7 +96,8 @@ def extract_points_around_CH(ds, step_lat, step_lon, nb_lat, nb_lon, levels=0):
     nb_lon -- the total number of grid points to extract for the longitude axis (the mesh will be centered)
     levels -- the desired vertical level(s)
     """
-    return extract_points_around(ds, CH_CENTER[0], CH_CENTER[1], step_lat=step_lat, step_lon=step_lon, nb_lat=nb_lat, nb_lon=nb_lon, levels=levels)
+    return extract_points_around(ds, CH_CENTER[0], CH_CENTER[1], step_lat=step_lat, step_lon=step_lon,
+                                 nb_lat=nb_lat, nb_lon=nb_lon, levels=levels)
 
 
 def get_data_mean_over_box(ds, lats, lons, level=0):
@@ -137,7 +139,8 @@ def get_data_mean_over_CH_box(ds, level=0):
     Arguments:
     level -- the desired vertical level
     """
-    return get_data_mean_over_box(ds, [CH_BOUNDING_BOX[0], CH_BOUNDING_BOX[1]], [CH_BOUNDING_BOX[2], CH_BOUNDING_BOX[3]], level)
+    return get_data_mean_over_box(ds, [CH_BOUNDING_BOX[0], CH_BOUNDING_BOX[1]],
+                                  [CH_BOUNDING_BOX[2], CH_BOUNDING_BOX[3]], level)
 
 
 def precip_exceedance(precip, qt=0.95):
@@ -232,7 +235,7 @@ def concat_dataframes(dfs):
                     'Dataframes to concatenate do not have the same ending date')
 
     dfs_concat = pd.concat(dfs, axis=1)
-    
+
     if 'date' in dfs_concat.columns:
         dfs_concat = remove_duplicate_date_column(dfs_concat)
 
@@ -255,4 +258,31 @@ def read_csv_files(csv_files, start, end):
 
     all_dfs = concat_dataframes(dataframes)
 
+    all_dfs.date = pd.to_datetime(all_dfs.date, errors='coerce')
+
     return all_dfs
+
+
+def prepare_prec_data_by_aggregated_regions(df, qt=0.95):
+    """Prepare dataframe by aggregated regions
+
+    Arguments:
+    precip -- the precipitation dataframe
+    qt -- the desired quantile
+    """
+    df = df[['date', 'reg_aggreg_1', 'reg_aggreg_2', 'reg_aggreg_3',
+             'reg_aggreg_4', 'reg_aggreg_5', 'reg_tot']]
+    df = df.rename(columns={'reg_aggreg_1': 'reg_1', 'reg_aggreg_2': 'reg_2',
+                            'reg_aggreg_3': 'reg_3', 'reg_aggreg_4': 'reg_4',
+                            'reg_aggreg_5': 'reg_5'})
+
+    df_xtrm = precip_exceedance(df, qt)
+    df_xtrm = df_xtrm.rename(columns={'reg_1': 'reg_1_xtr', 'reg_2': 'reg_2_xtr',
+                                      'reg_3': 'reg_3_xtr', 'reg_4': 'reg_4_xtr',
+                                      'reg_5': 'reg_5_xtr', 'reg_tot': 'reg_tot_xtr'})
+
+    df = pd.concat([df, df_xtrm], axis=1)
+
+    df = remove_duplicate_date_column(df)
+
+    return df
