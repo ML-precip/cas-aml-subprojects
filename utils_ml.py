@@ -4,6 +4,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import precision_score, recall_score, roc_auc_score, roc_curve
+import matplotlib.pyplot as plt
+
 
 def split_data(df, yy_train, yy_test, attributes, ylabel):
     """"Split the data into train and test
