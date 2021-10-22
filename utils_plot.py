@@ -18,5 +18,5 @@ def plot_scatter(y_test, y_pred):
         ax.set_xlabel('Observed prec. [mm]')
         ax.set_ylabel('Predicted prec. [mm]')
         ax.set_title(y_test.iloc[:, i].name)
-        ax.set_xlim([0, 1.05 * v_max])
-        ax.set_ylim([0, 1.05 * v_max])
+        ax.set_xlim([x.min(), 1.05 * v_max])
+        ax.set_ylim([y.min(), 1.05 * v_max])
