@@ -186,7 +186,7 @@ def convert_units(df):
     for key, ts in df.iteritems():
         if key in ['T2MMEAN', 'T2M']:
             df[key] = ts - 273.15
-        if key in ['Z1000', 'Z850', 'Z700', 'Z500', 'Z300']:
+        if key in ['Z1000', 'Z850', 'Z700', 'Z500', 'Z300', '1000', '850', '700', '500', '300']:
             df[key] = ts/G
         if key in ['MSL']:
             df[key] = ts/100
@@ -242,7 +242,7 @@ def concat_dataframes(dfs):
     return dfs_concat
 
 
-def read_csv_files(csv_files, start, end):
+def read_csv_files(csv_files, start, end, rename_columns=False):
     """"Read CSV files according to the pattern csv_files
         Select the time period """
     dataframes = []  # a list to hold all the individual pandas DataFrames
@@ -255,6 +255,13 @@ def read_csv_files(csv_files, start, end):
         df = df[(df.date >= start_date) & (df.date <= end_date)]
         df = convert_units(df)
         dataframes.append(df)
+
+    if rename_columns:
+        for df_num, df in enumerate(dataframes):
+            for column in df.columns:
+                if column == 'date':
+                    continue
+                df.rename(columns={column: f'{column}_{df_num}'}, inplace=True)
 
     all_dfs = concat_dataframes(dataframes)
 
