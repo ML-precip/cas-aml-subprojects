@@ -3,7 +3,7 @@ import seaborn as sns
 import pandas as pd
 
 
-def plot_scatter(y_test, y_pred):
+def plot_prediction_scatter(y_test, y_pred):
     n_cols = 3
     n_plots = y_pred.shape[1]
     nrows = -(-n_plots // n_cols)
@@ -23,6 +23,7 @@ def plot_scatter(y_test, y_pred):
         ax.set_xlim([x.min(), 1.05 * v_max])
         ax.set_ylim([y.min(), 1.05 * v_max])
 
+
 def plot_prediction_ts(test_dates, final_predictions, test_labels):
     df_to_compare = pd.DataFrame({'date': test_dates, 'Actual': test_labels, 'Predicted': final_predictions})
     dfm = pd.melt(df_to_compare, id_vars=['date'], value_vars=['Actual', 'Predicted'], var_name='data', value_name='precip')
@@ -35,5 +36,5 @@ def plot_prediction_ts(test_dates, final_predictions, test_labels):
                 y="Predicted",
                 ax=axs[0],
                 )
-                
+
     sns.lineplot(x='date', y='precip', hue = 'data', data=dfm, ax=axs[1])
