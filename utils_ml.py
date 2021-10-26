@@ -8,6 +8,62 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import tensorflow as tf
+from tensorflow import keras
+
+# From https://developpaper.com/tensorflow-chapter-tensorflow-2-x-local-training-and-evaluation-based-on-keras-model/
+class WeightedBinaryCrossEntropy(keras.losses.Loss):
+    """
+    Args:
+    pos_weight: Scalar to affect the positive labels of the loss function.
+    weight: Scalar to affect the entirety of the loss function.
+    from_logits: Whether to compute loss from logits or the probability.
+    reduction: Type of tf.keras.losses.Reduction to apply to loss.
+    name: Name of the loss function.
+    """
+    def __init__(self,
+                pos_weight,
+                weight,
+                from_logits=False,
+                reduction=keras.losses.Reduction.AUTO,
+                name='weighted_binary_crossentropy'):
+        super().__init__(reduction=reduction, name=name)
+        self.pos_weight = pos_weight
+        self.weight = weight
+        self.from_logits = from_logits
+
+    def call(self, y_true, y_pred):
+        ce = tf.losses.binary_crossentropy(
+            y_true,
+            y_pred,
+            from_logits=self.from_logits,
+        )[:, None]
+        ce = self.weight * (ce * (1 - y_true) + self.pos_weight * ce * y_true)
+        return ce
+
+
+def weighted_binary_crossentropy(target, output):
+    """
+    Weighted binary crossentropy between an output tensor 
+    and a target tensor. POS_WEIGHT is used as a multiplier 
+    for the positive targets.
+
+    From https://helioml.org/08/notebook.html
+    """
+    # multiplier for positive targets, needs to be tuned
+    POS_WEIGHT = 10 
+    
+    # transform back to logits
+    _epsilon = tf.convert_to_tensor(tfb.epsilon(), output.dtype.base_dtype)
+    #_epsilon = tf.convert_to_tensor(tfb.epsilon(), dtype=tf.float32)
+    output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
+    output = tfb.log(output / (1 - output))
+    # compute weighted loss
+    loss = tf.nn.weighted_cross_entropy_with_logits(labels=target,
+                                                    logits=output,
+                                                    pos_weight=POS_WEIGHT)
+    return tf.reduce_mean(loss, axis=-1)
+    
 
 def split_data(df, yy_train, yy_test, attributes, ylabel):
     """"Split the data into train and test
