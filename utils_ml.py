@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import os
 import tensorflow as tf
 from tensorflow import keras
+import tensorflow.keras.backend as tfb
+
 
 # From https://developpaper.com/tensorflow-chapter-tensorflow-2-x-local-training-and-evaluation-based-on-keras-model/
 class WeightedBinaryCrossEntropy(keras.losses.Loss):
@@ -51,11 +53,10 @@ def weighted_binary_crossentropy(target, output):
     From https://helioml.org/08/notebook.html
     """
     # multiplier for positive targets, needs to be tuned
-    POS_WEIGHT = 10 
+    POS_WEIGHT = 5 
     
     # transform back to logits
     _epsilon = tf.convert_to_tensor(tfb.epsilon(), output.dtype.base_dtype)
-    #_epsilon = tf.convert_to_tensor(tfb.epsilon(), dtype=tf.float32)
     output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
     output = tfb.log(output / (1 - output))
     # compute weighted loss
