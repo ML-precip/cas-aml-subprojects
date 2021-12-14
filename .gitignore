@@ -133,3 +133,4 @@ data/
 .vscode/
 .DS_Store
 .idea/
+image_at_epoch_*.png
