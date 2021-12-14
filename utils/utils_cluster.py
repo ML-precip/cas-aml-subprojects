@@ -181,7 +181,7 @@ def visCluster(myclusters,nfreq, N):
         cs=axs[i].contourf(myclusters.lon,myclusters.lat,myclusters['z'][i,:,:],cmap=plt.cm.RdBu_r,
                               transform = ccrs.PlateCarree(),extend='both')
         axs[i].set_title("%.2f" %nfreq[i])
-        axs[i].coastlines()
+       # axs[i].coastlines('50m',edgecolor='black', linewidth=0.75)
 
     fig.subplots_adjust(bottom=0.2, top=0.9, left=0.1, right=0.9,
                         wspace=0.02, hspace=0.02)
