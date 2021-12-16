@@ -160,36 +160,6 @@ def evaluate_model(test_labels, train_labels, predictions, probs, train_predicti
     plt.title('ROC Curves')
 
 
-def plot_prediction_ts(test_dates, final_predictions, test_labels):
-    import seaborn as sns
-    df_to_compare = pd.DataFrame(
-        {'date': test_dates, 'Actual': test_labels, 'Predicted': final_predictions})
-    dfm = pd.melt(df_to_compare, id_vars=['date'], value_vars=[
-                  'Actual', 'Predicted'], var_name='data', value_name='precip')
-    f, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
-
-    sns.regplot(data=df_to_compare, x="Actual", y="Predicted", ax=axs[0], )
-    sns.lineplot(x='date', y='precip', hue='data', data=dfm, ax=axs[1])
-
-
-def plot_importance(features_importance, attributes, IMAGES_PATH):
-    indices = np.argsort(features_importance)
-    plt.barh(range(len(attributes)),
-             features_importance[indices], color='b', align='center')
-    plt.yticks(range(len(indices)), [attributes[i] for i in indices])
-    plt.xlabel('Relative Importance')
-    save_fig("Rela_Importance", IMAGES_PATH)
-    plt.show()
-
-
-def save_fig(fig_id, IMAGES_PATH, tight_layout=True, fig_extension="png", resolution=300):
-    path = os.path.join(IMAGES_PATH, fig_id + "." + fig_extension)
-    print("Saving figure", fig_id)
-    if tight_layout:
-        plt.tight_layout()
-    plt.savefig(path, format=fig_extension, dpi=resolution)
-
-
 class DataGenerator(keras.utils.Sequence):
     def __init__(self, ds, var_dict, batch_size=32, shuffle=True, load=True, mean=None, std=None):
     #def __init__(self, ds, var_dict, lead_time, batch_size=32, shuffle=True, load=True, mean=None, std=None):
@@ -234,17 +204,4 @@ class DataGenerator(keras.utils.Sequence):
         # For some weird reason calling .load() earlier messes up the mean and std computations
         if load: print('Loading data into RAM'); self.data.load()
 
-            
-def plot_hist(history):
-    # plot the train and validation losses
-    N = np.arange(len(history.history['loss']))
-    plt.figure()
-    plt.plot(N, history.history['loss'], label='train_loss')
-    plt.plot(N, history.history['val_loss'], label='val_loss')
-    plt.title('Training Loss and Accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss/Accuracy')
-    plt.legend(loc='upper right')
-    
-    plt.show()
     
