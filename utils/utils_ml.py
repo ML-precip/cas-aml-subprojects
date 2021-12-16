@@ -7,6 +7,7 @@ from sklearn.metrics import precision_score, recall_score, roc_auc_score, roc_cu
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import xarray as xr
 import os
 import tensorflow as tf
 from tensorflow import keras
@@ -23,12 +24,13 @@ class WeightedBinaryCrossEntropy(keras.losses.Loss):
     reduction: Type of tf.keras.losses.Reduction to apply to loss.
     name: Name of the loss function.
     """
+
     def __init__(self,
-                pos_weight,
-                weight,
-                from_logits=False,
-                reduction=keras.losses.Reduction.AUTO,
-                name='weighted_binary_crossentropy'):
+                 pos_weight,
+                 weight,
+                 from_logits=False,
+                 reduction=keras.losses.Reduction.AUTO,
+                 name='weighted_binary_crossentropy'):
         super().__init__(reduction=reduction, name=name)
         self.pos_weight = pos_weight
         self.weight = weight
@@ -41,6 +43,7 @@ class WeightedBinaryCrossEntropy(keras.losses.Loss):
             from_logits=self.from_logits,
         )[:, None]
         ce = self.weight * (ce * (1 - y_true) + self.pos_weight * ce * y_true)
+
         return ce
 
 
@@ -52,17 +55,19 @@ def weighted_binary_crossentropy(target, output):
 
     From https://helioml.org/08/notebook.html
     """
-    # multiplier for positive targets, needs to be tuned
-    POS_WEIGHT = 5 
-    
-    # transform back to logits
+    # Multiplier for positive targets, needs to be tuned
+    POS_WEIGHT = 5
+
+    # Transform back to logits
     _epsilon = tf.convert_to_tensor(tfb.epsilon(), output.dtype.base_dtype)
     output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
     output = tfb.log(output / (1 - output))
-    # compute weighted loss
+
+    # Compute weighted loss
     loss = tf.nn.weighted_cross_entropy_with_logits(labels=target,
                                                     logits=output,
                                                     pos_weight=POS_WEIGHT)
+
     return tf.reduce_mean(loss, axis=-1)
     
 
@@ -71,15 +76,20 @@ def split_data(df, yy_train, yy_test, attributes, ylabel):
          df is the data\n",
          attributes are the covariates,
          ylabel is the target variable"""
-    train_dataset = df[(df.date.dt.year >= yy_train[0]) & (df.date.dt.year <= yy_train[1])]
-    test_dataset = df[(df.date.dt.year >= yy_test[0]) & (df.date.dt.year <= yy_test[1])]
-    # extract the dates for each datasets
+    train_dataset = df[(df.date.dt.year >= yy_train[0]) &
+                       (df.date.dt.year <= yy_train[1])]
+    test_dataset = df[(df.date.dt.year >= yy_test[0]) &
+                      (df.date.dt.year <= yy_test[1])]
+
+    # Extract the dates for each datasets
     train_dates = train_dataset['date']
     test_dates = test_dataset['date']
-    # extract labels
+
+    # Extract labels
     train_labels = train_dataset[ylabel].copy()
     test_labels = test_dataset[ylabel].copy()
-    # extract predictors\n",
+    
+    # Extract predictors\n",
     train_dataset = train_dataset[attributes]
     test_dataset = test_dataset[attributes]
 
@@ -108,9 +118,6 @@ def create_pipeline(data, cat_var):
         ])
 
     return(full_pipeline)
-
-
-
 
 
 def evaluate_model(test_labels, train_labels, predictions, probs, train_predictions, train_probs):
@@ -147,41 +154,97 @@ def evaluate_model(test_labels, train_labels, predictions, probs, train_predicti
     # Plot both curves
     plt.plot(base_fpr, base_tpr, 'b', label = 'baseline')
     plt.plot(model_fpr, model_tpr, 'r', label = 'model')
-    plt.legend();
-    plt.xlabel('False Positive Rate'); plt.ylabel('True Positive Rate'); plt.title('ROC Curves');
+    plt.legend()
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curves')
 
 
-
-def plotprediction_TS(test_dates, final_predictions, test_labels):
+def plot_prediction_ts(test_dates, final_predictions, test_labels):
     import seaborn as sns
-    df_to_compare = pd.DataFrame({'date': test_dates, 'Actual': test_labels, 'Predicted': final_predictions})
-    dfm = pd.melt(df_to_compare, id_vars=['date'], value_vars=['Actual', 'Predicted'], var_name='data', value_name='precip')
-    f, axs = plt.subplots(1,2,
-                      figsize=(12,5),
-                      sharey=True)
+    df_to_compare = pd.DataFrame(
+        {'date': test_dates, 'Actual': test_labels, 'Predicted': final_predictions})
+    dfm = pd.melt(df_to_compare, id_vars=['date'], value_vars=[
+                  'Actual', 'Predicted'], var_name='data', value_name='precip')
+    f, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
 
-    sns.regplot(data= df_to_compare,
-                x="Actual",
-                y="Predicted",
-                ax=axs[0],
-                )
-    sns.lineplot(x='date', y='precip', hue = 'data', data=dfm, ax=axs[1])
+    sns.regplot(data=df_to_compare, x="Actual", y="Predicted", ax=axs[0], )
+    sns.lineplot(x='date', y='precip', hue='data', data=dfm, ax=axs[1])
 
-    
-    
-    
-def plot_Importance(features_importance, attributes, IMAGES_PATH):
+
+def plot_importance(features_importance, attributes, IMAGES_PATH):
     indices = np.argsort(features_importance)
-    plt.barh(range(len(attributes)), features_importance[indices], color='b', align='center')
+    plt.barh(range(len(attributes)),
+             features_importance[indices], color='b', align='center')
     plt.yticks(range(len(indices)), [attributes[i] for i in indices])
     plt.xlabel('Relative Importance')
     save_fig("Rela_Importance", IMAGES_PATH)
     plt.show()
-    
-    
-def save_fig(fig_id,IMAGES_PATH, tight_layout=True, fig_extension="png", resolution=300):
+
+
+def save_fig(fig_id, IMAGES_PATH, tight_layout=True, fig_extension="png", resolution=300):
     path = os.path.join(IMAGES_PATH, fig_id + "." + fig_extension)
     print("Saving figure", fig_id)
     if tight_layout:
         plt.tight_layout()
     plt.savefig(path, format=fig_extension, dpi=resolution)
+
+
+class DataGenerator(keras.utils.Sequence):
+    def __init__(self, ds, var_dict, batch_size=32, shuffle=True, load=True, mean=None, std=None):
+    #def __init__(self, ds, var_dict, lead_time, batch_size=32, shuffle=True, load=True, mean=None, std=None):
+        """
+        Data generator for WeatherBench data.
+        Template from https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly
+        Args:
+            ds: Dataset containing all variables
+            var_dict: Dictionary of the form {'var': level}. Use None for level if data is of single level
+            lead_time: Lead time in hours # I am skipping it for now
+            batch_size: Batch size
+            shuffle: bool. If True, data is shuffled.
+            load: bool. If True, datadet is loaded into RAM.
+            mean: If None, compute mean from data.
+            std: If None, compute standard deviation from data.
+        """
+        self.ds = ds
+        self.var_dict = var_dict
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        #self.lead_time = lead_time
+
+        data = []
+        generic_level = xr.DataArray([1], coords={'level': [1]}, dims=['level'])
+        for var, levels in var_dict.items():
+            #try:
+            #    data.append(ds[var].sel(level=levels))
+            #except ValueError:
+                data.append(ds[var].expand_dims({'level': generic_level}, 1))
+
+        # I removed self.data.mean(('time', 'lat', 'lon')).compute()
+        self.data = xr.concat(data, 'level').transpose('time', 'lat', 'lon', 'level')
+        self.mean = self.data.mean(('time', 'lat', 'lon')) if mean is None else mean
+        self.std = self.data.std('time').mean(('lat', 'lon')) if std is None else std
+        # Normalize
+        self.data = (self.data - self.mean) / self.std
+        #self.n_samples = self.data.isel(time=slice(0, -lead_time)).shape[0]
+        #self.init_time = self.data.isel(time=slice(None, -lead_time)).time
+        #self.valid_time = self.data.isel(time=slice(lead_time, None)).time
+
+        #self.on_epoch_end()
+        # For some weird reason calling .load() earlier messes up the mean and std computations
+        if load: print('Loading data into RAM'); self.data.load()
+
+            
+def plot_hist(history):
+    # plot the train and validation losses
+    N = np.arange(len(history.history['loss']))
+    plt.figure()
+    plt.plot(N, history.history['loss'], label='train_loss')
+    plt.plot(N, history.history['val_loss'], label='val_loss')
+    plt.title('Training Loss and Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss/Accuracy')
+    plt.legend(loc='upper right')
+    
+    plt.show()
+    

@@ -53,7 +53,7 @@ def lnmodel(X_prep_train, X_prep_test, train_labels, test_labels):
     # makes some predictions
     y_pred = lr.predict(X_prep_test)
     #print('Comparing predictions')
-    #plotprediction_TS(test_dates, y_pred, test_labels)
+    #plot_prediction_ts(test_dates, y_pred, test_labels)
     
     return(lr, mse_train, mse_test, y_pred)
 
@@ -93,12 +93,12 @@ def rfmodel(X_prep_train, X_prep_test, train_labels, test_labels):
     mse_rf_cv_test = mean_squared_error(test_labels, forest_GCV_reg.predict(X_prep_test))
     print(f'Train MSE = {mse_rf_cv_train}'); print(f'Test MSE = {mse_rf_cv_test}')
     print(f'Train RMSE = {np.sqrt(mse_rf_cv_train)}'); print(f'Test RMSE = {np.sqrt(mse_rf_cv_test)}')
-    #plotprediction_TS(test_dates, y_rf_cv_predict, test_labels)
+    #plot_prediction_ts(test_dates, y_rf_cv_predict, test_labels)
     
     features_importance = forest_GCV_reg.feature_importances_
     
     #sorted_features_importance = sorted(zip(features_importance, attributes), reverse=True)
     
-    #plot_Importance(features_importance,attributes, IMAGES_PATH)
+    #plot_importance(features_importance,attributes, IMAGES_PATH)
     
     return(forest_GCV_reg, mse_rf_cv_train, mse_rf_cv_test,y_rf_cv_predict, features_importance)

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 import pandas as pd
 
@@ -25,16 +26,44 @@ def plot_prediction_scatter(y_test, y_pred):
 
 
 def plot_prediction_ts(test_dates, final_predictions, test_labels):
-    df_to_compare = pd.DataFrame({'date': test_dates, 'Actual': test_labels, 'Predicted': final_predictions})
-    dfm = pd.melt(df_to_compare, id_vars=['date'], value_vars=['Actual', 'Predicted'], var_name='data', value_name='precip')
-    f, axs = plt.subplots(1,2,
-                      figsize=(12,5),
-                      sharey=True)
+    df_to_compare = pd.DataFrame(
+        {'date': test_dates, 'Actual': test_labels, 'Predicted': final_predictions})
+    dfm = pd.melt(df_to_compare, id_vars=['date'], value_vars=[
+                  'Actual', 'Predicted'], var_name='data', value_name='precip')
+    f, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
 
-    sns.regplot(data= df_to_compare,
-                x="Actual",
-                y="Predicted",
-                ax=axs[0],
-                )
+    sns.regplot(data=df_to_compare, x="Actual", y="Predicted", ax=axs[0], )
+    sns.lineplot(x='date', y='precip', hue='data', data=dfm, ax=axs[1])
 
-    sns.lineplot(x='date', y='precip', hue = 'data', data=dfm, ax=axs[1])
+
+def plot_importance(features_importance, attributes, IMAGES_PATH):
+    indices = np.argsort(features_importance)
+    plt.barh(range(len(attributes)),
+             features_importance[indices], color='b', align='center')
+    plt.yticks(range(len(indices)), [attributes[i] for i in indices])
+    plt.xlabel('Relative Importance')
+    save_fig("Rela_Importance", IMAGES_PATH)
+    plt.show()
+
+
+def save_fig(fig_id, IMAGES_PATH, tight_layout=True, fig_extension="png", resolution=300):
+    path = os.path.join(IMAGES_PATH, fig_id + "." + fig_extension)
+    print("Saving figure", fig_id)
+    if tight_layout:
+        plt.tight_layout()
+    plt.savefig(path, format=fig_extension, dpi=resolution)
+
+
+def plot_hist(history):
+    
+    # plot the train and validation losses
+    N = np.arange(len(history.history['loss']))
+    plt.figure()
+    plt.plot(N, history.history['loss'], label='train_loss')
+    plt.plot(N, history.history['val_loss'], label='val_loss')
+    plt.title('Training Loss and Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss/Accuracy')
+    plt.legend(loc='upper right')
+    
+    plt.show()
